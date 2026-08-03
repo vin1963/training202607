@@ -1083,6 +1083,12 @@ curl http://localhost:8080/bookstore-api/api/books
             <artifactId>jakarta.ws.rs-api</artifactId>
             <version>3.1.0</version>
         </dependency>
+        <!-- Jakarta Activation API（JAX-RS 3.1 規範要求） -->
+		<dependency>
+			<groupId>jakarta.activation</groupId>
+			<artifactId>jakarta.activation-api</artifactId>
+			<version>2.1.2</version>
+		</dependency>
 
         <!-- Jersey 核心 + Servlet 整合 + HK2 注入 -->
         <dependency>
