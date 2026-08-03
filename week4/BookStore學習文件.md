@@ -136,24 +136,91 @@ Jackson 把 List<Book> 轉成 JSON 字串
 實體類別 = 「程式的物件」與「資料庫的一張表」之間的對應。
 
 ```java
-@Entity                        // 告訴 JPA：這是資料實體
-@Table(name = "books")         // 對應的資料表名稱
+package entity;
+
+import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "books")
 public class Book {
 
-    @Id                        // 主鍵
-    @GeneratedValue(strategy = GenerationType.IDENTITY)  // 自動流水號
-    private Long id;
+ @Id
+ @GeneratedValue(strategy = GenerationType.IDENTITY) 
+ private Long id;
 
-    @Column(nullable = false, length = 200)  // 不可為 null，長度 200
-    private String title;
+ @Column(nullable = false, length = 200)
+ private String title;
 
-    @Column(length = 20)
-    private String isbn;
+ @Column(nullable = false, length = 100)
+ private String author;
 
-    @Column(name = "publish_date")           // 資料庫欄位改名
-    private LocalDate publishDate;
-    ...
+ @Column(length = 20) 
+ private String isbn;
+
+ @Column(nullable = false)
+ private Double price;
+
+ @Column(name = "publish_date")
+ private LocalDate publishDate;
+
+ @Column(length = 50)
+ private String category;
+
+ @Column(name = "stock") 
+ private Integer stock;
+
+ @Column(name = "created_at", updatable = false)
+ private LocalDateTime createdAt;
+
+ @Column(name = "updated_at")
+ private LocalDateTime updatedAt;
+
+ @PrePersist
+ protected void onCreate() {
+     createdAt = LocalDateTime.now();
+     updatedAt = LocalDateTime.now();
+ }
+
+ @PreUpdate
+ protected void onUpdate() {
+     updatedAt = LocalDateTime.now();
+ }
+
+ // ===== Getters & Setters =====
+
+ public Long getId() { return id; }
+ public void setId(Long id) { this.id = id; }
+
+ public String getTitle() { return title; }
+ public void setTitle(String title) { this.title = title; }
+
+ public String getAuthor() { return author; }
+ public void setAuthor(String author) { this.author = author; }
+
+ public String getIsbn() { return isbn; }
+ public void setIsbn(String isbn) { this.isbn = isbn; }
+
+ public Double getPrice() { return price; }
+ public void setPrice(Double price) { this.price = price; }
+
+ public LocalDate getPublishDate() { return publishDate; }
+ public void setPublishDate(LocalDate publishDate) { this.publishDate = publishDate; }
+
+ public String getCategory() { return category; }
+ public void setCategory(String category) { this.category = category; }
+
+ public Integer getStock() { return stock; }
+ public void setStock(Integer stock) { this.stock = stock; }
+
+ public LocalDateTime getCreatedAt() { return createdAt; }
+ public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+ public LocalDateTime getUpdatedAt() { return updatedAt; }
+ public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
+
 ```
 
 **學習重點：**
@@ -219,6 +286,180 @@ try {
 
 **寫入操作（新增/更新/刪除）必須有交易；唯讀查詢則可省去交易，但都要在 `finally` 關閉 `EntityManager`。**
 
+#### 六個 CRUD 方法逐步解說
+
+> 以下六個方法對應 `Repository<T, ID>` 介面，是 Controller 呼叫 Repository 的六個入口。
+> 解說重點不在 API 語法，而在 **JPA 實體狀態（Entity State）**。先記住一句話：
+> **只有「受 EntityManager 管理的實體（managed）」的修改會被自動同步回資料庫。**
+
+##### ① `save(Book book)` — 新增
+
+```java
+public Book save(Book book) {
+    EntityManager em = JpaUtil.createEntityManager();
+    EntityTransaction tx = em.getTransaction();
+    try {
+        tx.begin();
+        em.persist(book);          // ← 關鍵
+        tx.commit();
+        return book;
+    } catch (Exception e) {
+        if (tx.isActive()) tx.rollback();
+        throw e;
+    } finally {
+        em.close();
+    }
+}
+```
+
+逐步執行：
+1. `persist(book)` 把新物件註冊進「持久化上下文」（persistence context），狀態從 **transient（無人管理）→ managed（受管理）**。
+2. 觸發 `@PrePersist → onCreate()`，自動填 `createdAt` / `updatedAt`。
+3. `commit()` 送出 `INSERT INTO books(...) VALUES(...)`；資料庫自增的 `id` 回寫到 `book.id`。
+4. `close()` 後 `book` 變成 **detached**，但 `id` 與時間已填好，可直接回傳給 Controller。
+
+> 新增回傳的是**同一個物件**，差別在於它現在「有了 id、有了時間」。
+
+##### ② `findById(Long id)` — 查單筆
+
+```java
+public Optional<Book> findById(Long id) {
+    EntityManager em = JpaUtil.createEntityManager();
+    try {
+        return Optional.ofNullable(em.find(Book.class, id));
+    } finally {
+        em.close();
+    }
+}
+```
+
+逐步執行：
+1. `em.find(Book.class, id)` 依主鍵查詢：有資料回傳 **managed** 的 `Book`，查無回傳 `null`。
+2. `Optional.ofNullable(...)` 把 `null` 轉成 `Optional.empty()`，讓 Controller 用 `.map()/.orElse()` 處理「有/無」。
+3. 唯讀查詢，**不需要交易**，但仍在 `finally` 關閉 EntityManager。
+
+> 回傳 `Optional` 是介面設計的關鍵——**把「可能查無」寫進型別裡**，呼叫端無法忽略空值情況。
+
+##### ③ `findAll()` — 查全部
+
+```java
+public List<Book> findAll() {
+    EntityManager em = JpaUtil.createEntityManager();
+    try {
+        return em.createQuery("SELECT b FROM Book b ORDER BY b.id", Book.class)
+                 .getResultList();
+    } finally {
+        em.close();
+    }
+}
+```
+
+逐步執行：
+1. `createQuery("SELECT b FROM Book b ORDER BY b.id", Book.class)` 用 **JPQL**（以實體與欄位為準）建立查詢。
+2. `getResultList()` 執行並回傳 `List<Book>`；查無資料時回傳**空 List**（不是 `null`）。
+3. 唯讀查詢，不需交易。
+
+> `createQuery` 的字串是 JPQL 不是 SQL：`Book` 是實體類別名、`b` 是別名、`b.id` 是實體欄位名。
+
+##### ④ `update(Book book)` — 更新
+
+```java
+public Book update(Book book) {
+    EntityManager em = JpaUtil.createEntityManager();
+    EntityTransaction tx = em.getTransaction();
+    try {
+        tx.begin();
+        Book merged = em.merge(book);   // ← 關鍵
+        tx.commit();
+        return merged;
+    } catch (Exception e) {
+        if (tx.isActive()) tx.rollback();
+        throw e;
+    } finally {
+        em.close();
+    }
+}
+```
+
+逐步執行：
+1. 進來的 `book` 通常是 **detached**（先前 `findById` 拿到、關閉 EM 後脫離管理；或由前端 JSON 反序列化而來）。
+2. `merge(book)` 讓 JPA 比對現有資料：
+   - 有同 `id` 的記錄 → 合併，產生 `UPDATE books SET ... WHERE id = ?`
+   - 沒有同 `id` 的記錄 → 當作新增（INSERT）
+3. 觸發 `@PreUpdate → onUpdate()`，重新填 `updatedAt`。
+4. `commit()` 後回傳 `merged`（**managed** 的新副本）。
+
+> **重要**：`merge` 回傳的是「新的 managed 物件」，不是傳進去的 `book`，所以要回傳 `merged`。
+> 更新是**整筆覆蓋**：`book` 為 `null` 的欄位，UPDATE 時也會被寫成 `null`（呼應第 6.4 節的提醒）。
+
+##### ⑤ `deleteById(Long id)` — 刪除
+
+```java
+public void deleteById(Long id) {
+    EntityManager em = JpaUtil.createEntityManager();
+    EntityTransaction tx = em.getTransaction();
+    try {
+        tx.begin();
+        Book book = em.find(Book.class, id);
+        if (book != null) em.remove(book);   // ← 先查出 managed 才能 remove
+        tx.commit();
+    } catch (Exception e) {
+        if (tx.isActive()) tx.rollback();
+        throw e;
+    } finally {
+        em.close();
+    }
+}
+```
+
+逐步執行：
+1. 先 `em.find()` 查出實體——**JPA 只能刪除「受管理的實體」**，不能直接 `em.remove(id)`。
+2. `em.remove(book)` 標記刪除，`commit()` 送出 `DELETE FROM books WHERE id = ?`。
+3. 查無資料就不刪（`if (book != null)`），空交易也能正常 commit，不會丟例外。
+
+> 對照 Controller：`delete()` 先 `existsById()` 檢查、找不到回 404，找到才呼叫 `deleteById`，
+> 所以正常流程中這裡的 `book` 不會是 `null`。
+
+##### ⑥ `existsById(Long id)` — 檢查存在
+
+```java
+public boolean existsById(Long id) {
+    EntityManager em = JpaUtil.createEntityManager();
+    try {
+        return em.find(Book.class, id) != null;
+    } finally {
+        em.close();
+    }
+}
+```
+
+逐步執行：
+1. `em.find(Book.class, id)` 依主鍵查；有資料回傳實體（`!= null` → `true`），查無回傳 `null`（→ `false`）。
+2. 唯讀、不需交易，`finally` 關閉 EM。
+
+> 它是 `findById` 的「只問存在與否、忽略資料」版本。Controller 在 `update` / `delete` 前用它做 404 防呆。
+
+##### 六個方法對照表
+
+| 方法 | 寫入? | 交易 | 回傳 | 對應 Controller | SQL 概念 |
+|------|-------|------|------|------------------|----------|
+| `save` | 是 | 是 | `Book`（已含 id） | `create` | INSERT |
+| `findById` | 否 | 否 | `Optional<Book>` | `getById` | SELECT ... WHERE id |
+| `findAll` | 否 | 否 | `List<Book>` | `getAll` 的預設分支 | SELECT 全表 |
+| `update` | 是 | 是 | `Book`（managed） | `update` | UPDATE |
+| `deleteById` | 是 | 是 | `void` | `delete` | DELETE |
+| `existsById` | 否 | 否 | `boolean` | `update`/`delete` 的防呆 | SELECT 存在與否 |
+
+##### 實體狀態（Entity State）一覽
+
+| 狀態 | 意義 | 進入方式 | 修改是否自動存回 DB |
+|------|------|----------|--------------------|
+| **transient** | 從未碰過 EntityManager 的新物件 | `new Book()` | 否 |
+| **managed** | 正被 EntityManager 管理 | `persist`、`find`、`merge` 回傳值 | 是（commit 時同步） |
+| **detached** | 曾被管理、EM 關閉後脫離 | 任何 managed 物件在 `em.close()` 後 | 否 |
+
+> 實務上：新增用 `persist`、查詢用 `find`、更新用 `merge`、刪除用「`find` 後 `remove`」——這是 JPA 的標準 CRUD 心法。
+
 進階查詢用 **JPQL**（以實體類別/欄位為準的查詢語法，而非 SQL 表格）：
 
 ```java
@@ -241,6 +482,18 @@ em.createQuery("SELECT b FROM Book b ORDER BY b.id", Book.class)
 - 一律用 `setParameter` 綁定參數，**不要用字串拼接**，這是防 SQL 注入的標準做法。
 - `em.find()` 是依主鍵查詢最簡單的方式。
 - `em.merge()` 用來處理「已經離開 EntityManager（detached）的物件」的更新。
+
+##### 進階查詢方法一覽
+
+| 方法 | 用途 | JPQL 重點 | 對應 Controller 呼叫 |
+|------|------|-----------|----------------------|
+| `findByCategory` | 依分類篩選（不分大小寫） | `LOWER(b.category) = LOWER(:cat)` + `ORDER BY b.title` | `getAll` 的 `category` 分支 |
+| `findByPriceRange` | 依價格區間篩選 | `b.price BETWEEN :min AND :max` + `ORDER BY b.price` | `getAll` 的 `minPrice/maxPrice` 分支 |
+| `findAllPaged` | 分頁查詢（page 從 1 開始） | `setFirstResult((page-1)*size)` + `setMaxResults(size)` | `getAll` 的預設分支 |
+| `count` | 取得總筆數 | `SELECT COUNT(b) FROM Book b` | 目前未使用（可做分頁總頁數） |
+
+> 這四個方法都沿用同一個 `EntityManager` 模式（建立 → 執行 → `finally` 關閉），差別只在 JPQL 字串。
+> 參數一律用 `setParameter` 綁定，避免 SQL 注入。
 
 > 完整檔案：見[附錄 14.6](#14-附錄完整程式碼總覽) `repository/BookRepository.java`。
 
@@ -268,6 +521,121 @@ public class BookController {
 | GET | 查單筆 | `getById` | `/api/books/{id}` |
 | PUT | 更新 | `update` | `/api/books/{id}` |
 | DELETE | 刪除 | `delete` | `/api/books/{id}` |
+
+#### 五個 API 方法的完整程式碼
+
+> 以下節錄 `BookController.java` 的實際程式碼。為聚焦 **JAX-RS 映射**，此處省略 Swagger 文件註解
+> （`@Operation`、`@Parameter`、`@ApiResponse`，見《[Swagger學習文件](Swagger學習文件.md)》）；
+> 含完整註解的原始碼見[附錄 14.7](#14-附錄完整程式碼總覽)。
+> 每個方法的**逐步執行細節**見[第 6 節](#6-控制器方法執行過程詳解)。
+
+##### POST `create` — 新增（`/api/books`）
+
+```java
+@POST
+public Response create(Book book) {
+    try {
+        Book saved = repo.save(book);
+        return Response.status(Response.Status.CREATED)
+                       .entity(ok(saved)).build();
+    } catch (Exception e) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                       .entity(fail("新增失敗：" + e.getMessage())).build();
+    }
+}
+```
+
+`Book book` 參數 = 請求的 JSON 由 Jackson 自動反序列化；成功回 201，失敗回 400（詳細流程見[第 6 節](#6-控制器方法執行過程詳解) 6.1）。
+
+##### GET `getAll` — 查全部 / 篩選 / 分頁（`/api/books`）
+
+```java
+@GET
+public Response getAll(
+        @QueryParam("category") String category,
+        @QueryParam("minPrice")  Double minPrice,
+        @QueryParam("maxPrice")  Double maxPrice,
+        @DefaultValue("1")  @QueryParam("page") int page,
+        @DefaultValue("10") @QueryParam("size") int size) {
+    Object data;
+    if (category != null) {
+        data = repo.findByCategory(category);
+    } else if (minPrice != null || maxPrice != null) {
+        double lo = (minPrice != null) ? minPrice : 0;
+        double hi = (maxPrice != null) ? maxPrice : Double.MAX_VALUE;
+        data = repo.findByPriceRange(lo, hi);
+    } else {
+        data = repo.findAllPaged(page, size);
+    }
+    return Response.ok(ok(data)).build();
+}
+```
+
+`if-else` 對應三種查詢分支（呼應 5.2 節的進階查詢方法）；`@DefaultValue` 處理沒帶參數的預設值。
+
+##### GET `getById` — 查單筆（`/api/books/{id}`）
+
+```java
+@GET
+@Path("/{id}")
+public Response getById(@PathParam("id") Long id) {
+    return repo.findById(id)
+        .map(book -> Response.ok(ok(book)).build())
+        .orElse(Response.status(Response.Status.NOT_FOUND)
+                        .entity(fail("書籍不存在")).build());
+}
+```
+
+`Optional.map().orElse()`：有值回 200、查無回 404，完全不寫 `if (book == null)`。
+
+##### PUT `update` — 更新（`/api/books/{id}`）
+
+```java
+@PUT
+@Path("/{id}")
+public Response update(@PathParam("id") Long id, Book book) {
+    if (!repo.existsById(id)) {
+        return Response.status(Response.Status.NOT_FOUND)
+                       .entity(fail("書籍不存在")).build();
+    }
+    book.setId(id);
+    try {
+        Book updated = repo.update(book);
+        return Response.ok(ok(updated)).build();
+    } catch (Exception e) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                       .entity(fail("更新失敗：" + e.getMessage())).build();
+    }
+}
+```
+
+先 `existsById` 防呆（回 404），再 `book.setId(id)` 讓 id 以 URL 為準，避免前端亂傳。
+
+##### DELETE `delete` — 刪除（`/api/books/{id}`）
+
+```java
+@DELETE
+@Path("/{id}")
+public Response delete(@PathParam("id") Long id) {
+    if (!repo.existsById(id)) {
+        return Response.status(Response.Status.NOT_FOUND)
+                       .entity(fail("書籍不存在")).build();
+    }
+    repo.deleteById(id);
+    return Response.ok(ok("已刪除")).build();
+}
+```
+
+找不到先回 404，找到才呼叫 `deleteById` 刪除。
+
+##### 共用工具方法 `ok()` / `fail()`
+
+```java
+private Map<String, Object> ok(Object data)  { return Map.of("success", true, "data", data); }
+private Map<String, Object> fail(String msg) { return Map.of("success", false, "error", msg); }
+```
+
+所有成功回應共用 `ok(data)`、失敗共用 `fail(msg)`，前端只需判斷 `success` 欄位。
 
 **學習重點：**
 1. **參數來源註解**：
@@ -348,15 +716,21 @@ public class JpaUtil {
 #### `config/JacksonConfig.java` — JSON 行為設定
 
 ```java
-@Provider                                        // 告訴 Jersey：這是給框架用的 Provider
+@Provider
 public class JacksonConfig implements ContextResolver<ObjectMapper> {
-
-    public JacksonConfig() {
-        mapper.registerModule(new JavaTimeModule());          // 支援 LocalDate/LocalDateTime
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);  // 日期輸出成字串而非數字
-        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES); // 忽略未知欄位
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);    // null 欄位不輸出
-    }
+ private final ObjectMapper mapper;
+ public JacksonConfig() {
+     mapper = new ObjectMapper();
+     mapper.registerModule(new JavaTimeModule());
+     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+     mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+     mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+     mapper.setPropertyNamingStrategy(PropertyNamingStrategies.LOWER_CAMEL_CASE);
+ }
+ @Override
+ public ObjectMapper getContext(Class<?> type) {
+     return mapper;
+ }
 }
 ```
 
@@ -450,6 +824,12 @@ public class JacksonConfig implements ContextResolver<ObjectMapper> {
             <artifactId>jakarta.ws.rs-api</artifactId>
             <version>3.1.0</version>
         </dependency>
+         <!-- Jakarta Activation API（JAX-RS 3.1 規範要求） -->
+		<dependency>
+			<groupId>jakarta.activation</groupId>
+			<artifactId>jakarta.activation-api</artifactId>
+			<version>2.1.2</version>
+		</dependency>
 
         <!-- Jersey 核心 + Servlet 整合 + HK2 注入 -->
         <dependency>
@@ -473,6 +853,11 @@ public class JacksonConfig implements ContextResolver<ObjectMapper> {
             <groupId>org.glassfish.jersey.media</groupId>
             <artifactId>jersey-media-json-jackson</artifactId>
             <version>${jersey.version}</version>
+        </dependency>
+         <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -543,6 +928,7 @@ public class JacksonConfig implements ContextResolver<ObjectMapper> {
 ## 6. 控制器方法執行過程詳解
 
 > 這節是重點中的重點：**把 Controller 的每個方法「從請求進來到回應出去」拆成一步步**，並說明每一步背後的框架行為。
+> 每個方法的**實際程式碼**見[第 5.3 節](#53-controller-層controllerbookcontrollerjava)。
 
 ### 6.1 POST `/api/books` → `create(Book book)`
 
@@ -845,18 +1231,31 @@ curl -X POST http://localhost:8080/bookstore-api/api/books \
 
 ```sql
 INSERT INTO books (title, author, isbn, price, publish_date, category, stock, created_at, updated_at) VALUES
-('哈利波特：神秘的魔法石','J.K. Rowling','978-957-33-1724-3',350.0,'2001-04-01','小說',100,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
-('三體','劉慈欣','978-986-216-632-1',480.0,'2014-01-01','科幻',60,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
-('Java 程式設計','張三','978-111-222-333',650.0,'2024-05-01','程式設計',50,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
-('Spring Boot 實戰','李四','978-111-222-334',720.0,'2023-11-15','程式設計',30,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
-('被討厭的勇氣','岸見一郎','978-986-175-351-7',300.0,'2015-09-01','心理',80,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
-('人類大歷史','哈拉瑞','978-986-509-132-3',520.0,'2016-03-10','歷史',40,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
-('小王子','聖修伯里','978-957-33-2642-3',199.0,'2010-06-15','小說',200,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),
-('深入淺出設計模式','Eric Freeman','978-986-594-131-2',680.0,'2021-08-20','程式設計',25,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP);
+('哈利波特：神秘的魔法石','J.K. Rowling','978-957-33-1724-3',350.0,CAST(strftime('%s','2001-04-01') AS INTEGER)*1000,'小說',100,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000),
+('三體','劉慈欣','978-986-216-632-1',480.0,CAST(strftime('%s','2014-01-01') AS INTEGER)*1000,'科幻',60,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000),
+('Java 程式設計','張三','978-111-222-333',650.0,CAST(strftime('%s','2024-05-01') AS INTEGER)*1000,'程式設計',50,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000),
+('Spring Boot 實戰','李四','978-111-222-334',720.0,CAST(strftime('%s','2023-11-15') AS INTEGER)*1000,'程式設計',30,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000),
+('被討厭的勇氣','岸見一郎','978-986-175-351-7',300.0,CAST(strftime('%s','2015-09-01') AS INTEGER)*1000,'心理',80,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000),
+('人類大歷史','哈拉瑞','978-986-509-132-3',520.0,CAST(strftime('%s','2016-03-10') AS INTEGER)*1000,'歷史',40,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000),
+('小王子','聖修伯里','978-957-33-2642-3',199.0,CAST(strftime('%s','2010-06-15') AS INTEGER)*1000,'小說',200,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000),
+('深入淺出設計模式','Eric Freeman','978-986-594-131-2',680.0,CAST(strftime('%s','2021-08-20') AS INTEGER)*1000,'程式設計',25,CAST(strftime('%s','now') AS INTEGER)*1000,CAST(strftime('%s','now') AS INTEGER)*1000);
 ```
 
+> **⚠️ 為什麼日期要用 `CAST(strftime('%s',...) AS INTEGER)*1000`？**
+> SQLite 沒有原生日期型別，日期只能存成文字或整數。Hibernate 6.6 讀取 `LocalDate` 時是走 JDBC 的 `ResultSet.getDate()`，而 sqlite-jdbc（3.46.x 到 3.50.x 皆同）對**文字日期只認 `yyyy-MM-dd HH:mm:ss.SSS` 完整格式**，所以：
+> - `publish_date` 塞純文字 `'2001-04-01'`、`created_at`/`updated_at` 塞 `CURRENT_TIMESTAMP`（文字 `yyyy-MM-dd HH:mm:ss`）
+> → 讀取時噴 **`Could not extract column [7] ... Error parsing date`**。
+> - 用上面的 **epoch 毫秒整數**（與 Hibernate 自己寫入的格式一致）→ 讀取完全正常。
+
 > **提醒**：
-> - 方法 A 由 `@PrePersist` 自動填時間，最符合專案設計；方法 B 要手動填 `created_at` / `updated_at`（NOT NULL）。
+> - 方法 A（API 新增）由 `@PrePersist` 自動填時間，最符合專案設計；方法 B 要手動填 `created_at` / `updated_at`（NOT NULL）。
+> - 若已經用舊格式塞過資料（TEXT 日期），可直接轉成整數救回：
+>   ```sql
+>   UPDATE books
+>   SET publish_date = CAST(strftime('%s', publish_date) AS INTEGER)*1000,
+>       created_at   = CAST(strftime('%s', created_at)   AS INTEGER)*1000,
+>       updated_at   = CAST(strftime('%s', updated_at)   AS INTEGER)*1000;
+>   ```
 > - 想重來：先執行 `DELETE FROM books;`（保留 id 繼續累加），或刪掉 `bookstore.db` 重啟 Tomcat 讓它重建。
 > - 若先前已新增過資料，id 順序可能不同，查單筆時以實際回傳的 id 為準。
 
@@ -1083,12 +1482,6 @@ curl http://localhost:8080/bookstore-api/api/books
             <artifactId>jakarta.ws.rs-api</artifactId>
             <version>3.1.0</version>
         </dependency>
-        <!-- Jakarta Activation API（JAX-RS 3.1 規範要求） -->
-		<dependency>
-			<groupId>jakarta.activation</groupId>
-			<artifactId>jakarta.activation-api</artifactId>
-			<version>2.1.2</version>
-		</dependency>
 
         <!-- Jersey 核心 + Servlet 整合 + HK2 注入 -->
         <dependency>
