@@ -59,29 +59,99 @@ jparsonemany/
 - **mysql-connector-j** (9.2.0) — MySQL JDBC 驅動
 
 ```xml
- <dependency>
-           <groupId>com.fasterxml.jackson.module</groupId>
-             <artifactId>jackson-module-jakarta-xmlbind-annotations</artifactId>
-            <version>2.17.0</version>
+ 
+       <!-- Servlet API (Jakarta EE 10 / Tomcat 10.1) -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>6.0.0</version>
+            <scope>provided</scope>
         </dependency>
-              
+        
+        <!-- JSP API -->
+        <dependency>
+            <groupId>jakarta.servlet.jsp</groupId>
+            <artifactId>jakarta.servlet.jsp-api</artifactId>
+            <version>3.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        
+        <!-- JSTL (含 API 與實作) -->
+        <dependency>
+         <groupId>jakarta.servlet.jsp.jstl</groupId>
+         <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+         <version>3.0.0</version>
+        </dependency>
+       <!-- JAX-RS API (Jakarta EE 10 / Tomcat 10.1) -->
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+        <!-- Jakarta Activation API（JAX-RS 3.1 規範要求） -->
+		<dependency>
+			<groupId>jakarta.activation</groupId>
+			<artifactId>jakarta.activation-api</artifactId>
+			<version>2.1.2</version>
+		</dependency>
+        <!-- Jersey Core Server -->
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-server</artifactId>
+            <version>3.1.6</version>
+        </dependency>
+
+        <!-- Jersey Servlet Container -->
+        <dependency>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-servlet</artifactId>
+            <version>3.1.6</version>
+        </dependency>
+
+        <!-- Jersey HK2 Injection -->
+        <dependency>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+            <version>3.1.6</version>
+        </dependency>
+       <!-- JSON 支援 (Jackson) -->
+        <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-json-jackson</artifactId>
+            <version>3.1.6</version>
+        </dependency>        
+         <dependency>
+           <groupId>com.fasterxml.jackson.module</groupId>
+           <artifactId>jackson-module-jakarta-xmlbind-annotations</artifactId>
+           <version>2.18.4</version>
+        </dependency>      
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-jaxb-annotations</artifactId>
-            <version>2.17.0</version>
+            <version>2.18.4</version>
         </dependency>
-        
-        <!-- Old javax.xml.bind API (required by jackson-module-jaxb-annotations; jakarta.xml.bind-api 4.x uses jakarta.* namespace) -->
-        <dependency>
-            <groupId>javax.xml.bind</groupId>
-            <artifactId>jaxb-api</artifactId>
-            <version>2.3.1</version>
-        </dependency>
+               
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>2.17.0</version>
+            <version>2.16.1</version>
         </dependency>
+       <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>6.6.1.Final</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.orm</groupId>
+      <artifactId>hibernate-hikaricp</artifactId>
+      <version>6.6.1.Final</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <version>9.2.0</version>
+    </dependency>
         
 ```
 
