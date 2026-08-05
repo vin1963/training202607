@@ -299,6 +299,55 @@ private String title;
 - `requiredMode = REQUIRED`：標記必填（對應 `@Column(nullable = false)`）。
 - `accessMode = READ_ONLY`：標記唯讀（id、createdAt、updatedAt），UI 輸入時不會出現。
 
+@Entity
+@Table(name = "books")
+@Schema(description = "書籍實體")
+public class Book {
+
+ @Id
+ @GeneratedValue(strategy = GenerationType.IDENTITY)
+ @Schema(description = "主鍵（自動產生，寫入時不需填）", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
+ private Long id;
+
+ @Column(nullable = false, length = 200)
+ @Schema(description = "書名", example = "Java 程式設計", requiredMode = Schema.RequiredMode.REQUIRED)
+ private String title;
+
+ @Column(nullable = false, length = 100)
+ @Schema(description = "作者", example = "張三", requiredMode = Schema.RequiredMode.REQUIRED)
+ private String author;
+
+ @Column(length = 20)
+ @Schema(description = "ISBN", example = "978-111-222-333")
+ private String isbn;
+
+ @Column(nullable = false)
+ @Schema(description = "價格", example = "599.0", requiredMode = Schema.RequiredMode.REQUIRED)
+ private Double price;
+
+ @Column(name = "publish_date")
+ @JsonFormat(pattern = "yyyy-MM-dd")
+ @Schema(description = "出版日期（格式 yyyy-MM-dd）", example = "2024-05-01")
+ private LocalDate publishDate;
+
+ @Column(length = 50)
+ @Schema(description = "分類（可用於查詢篩選）", example = "程式設計")
+ private String category;
+
+ @Column(name = "stock")
+ @Schema(description = "庫存數量", example = "50")
+ private Integer stock;
+
+ @Column(name = "created_at", updatable = false)
+ @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+ @Schema(description = "建立時間（自動產生，不需填）", accessMode = Schema.AccessMode.READ_ONLY)
+ private LocalDateTime createdAt;
+
+ @Column(name = "updated_at")
+ @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+ @Schema(description = "更新時間（自動產生，不需填）", accessMode = Schema.AccessMode.READ_ONLY)
+ private LocalDateTime updatedAt;
+ 
 ---
 
 ## 7. 在 Swagger UI 直接試打 API
