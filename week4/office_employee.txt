@@ -1,0 +1,67 @@
+{
+        "officeCode": "10",
+        "addressLine1": "Kung Yuan Road 30 3F",
+        "addressLine2": null,
+        "city": "Taipei",
+        "country": "TW",
+        "phone": "+886 2 23836015",
+        "postalCode": "10000",
+        "state": "NA",
+        "territory": "NA",
+        "employees": [
+            {
+                "email": "danny.wang@modelcars.com",
+                "employeeNumber": 1800,
+                "extension": "x2222",
+                "firstName": "Danny",
+                "jobTitle": "Sales Rep",
+                "lastName": "Wang",
+                "reportsTo": 1143                
+            },
+            {
+                "email": "mary.wu@modelcars.com",
+                "employeeNumber": 1801,
+                "extension": "x3333",
+                "firstName": "Mary",
+                "jobTitle": "Sales Rep",
+                "lastName": "Wu",
+                "reportsTo": 1143                
+            }
+        ]
+    }
+
+=============================================
+
+{
+        "officeCode": "8",
+        "addressLine1": "33 Lakeba St.",
+        "addressLine2": "Suit 12",
+        "city": "Samabula",
+        "country": "FJ",
+        "phone": "+163 120 254 6552",
+        "postalCode": "12254",
+        "state": "SV",
+        "territory": "NA",
+        "employees": [
+            {
+                "email": "sally.chen@classicmodelcars.com",
+                "employeeNumber": 1800,
+                "extension": "x4444",
+                "firstName": "Sally",
+                "jobTitle": "Sale Rep",
+                "lastName": "Chen",
+                "reportsTo": 1002
+               
+            },
+            {
+                "email": "auty.weng@classicmodelcars.com",
+                "employeeNumber": 1801,
+                "extension": "x6666",
+                "firstName": "Auty",
+                "jobTitle": "Sale Rep",
+                "lastName": "Weng",
+                "reportsTo": 1002
+                
+            }
+        ]
+}

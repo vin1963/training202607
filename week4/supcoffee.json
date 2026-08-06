@@ -1,0 +1,22 @@
+{
+    "supId": 1,
+    "city": "Taipei",
+    "state": "TW",
+    "street": "公園路30",
+    "supName": "Gjun Coffee",
+    "zip": "10000",
+    "coffees": [
+        {
+            "cofName": "Cooffee A",
+            "price": 1.99,
+            "sales": 10,
+            "total": 10
+        },
+        {
+            "cofName": "Coffee B",
+            "price": 9.99,
+            "sales": 5,
+            "total": 10
+        }
+    ]
+}
