@@ -34,7 +34,7 @@ public class Employee implements Serializable {
 	//bi-directional many-to-one association to Office
 	@ManyToOne
 	@JsonIgnoreProperties("employees")
-    	@JoinColumn(name="officeCode", referencedColumnName="officeCode")
+    @JoinColumn(name="officeCode", referencedColumnName="officeCode")
 	private Office office;
 
 	public Employee() {

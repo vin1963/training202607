@@ -35,7 +35,7 @@ public class Office implements Serializable {
 	private String territory;
 
 	//bi-directional many-to-one association to Employee
-	@OneToMany(mappedBy="office",targetEntity=Employee.class ,cascade = CascadeType.PERSIST , fetch=FetchType.EAGER)	
+	@OneToMany(mappedBy="office",targetEntity=Employee.class ,cascade = CascadeType.PERSIST)	
 	private List<Employee> employees;
 
 	public Office() {
