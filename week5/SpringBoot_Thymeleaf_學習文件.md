@@ -276,13 +276,14 @@ public class DemoApplication {
 ```
 
 ### 6.6 內建物件
-
+### 注意新版本不支援 ${#session.getAttribute('user')} ${#request.getParameter('user')} ${#servletContext.getAttribute('user')} 語法
 ```html
 <!-- #request - HttpServletRequest -->
 <p th:text="${#request.getParameter('id')}">參數值</p>
 
 <!-- #session - HttpSession -->
 <p th:text="${#session.getAttribute('user')}">Session 資料</p>
+必須改寫為 <p th:text="${session['user']}">Session 資料</p>
 
 <!-- #lists - List 工具 -->
 <p th:text="${#lists.size(users)}">使用者數量</p>
