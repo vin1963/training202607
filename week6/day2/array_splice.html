@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Array Index Operation</title>
+
+</head>
+
+<body>
+    <button onclick="ArrayOP()">Search Array and Delete</button>
+    <button onclick="ArrayReplace()">Search Array and Replace</button>
+    <script>
+        var fruits = ['Banana', 'Orange', 'Apple', 'Mango', 'Peach'];
+
+        function ArrayOP() {
+            console.log("fruits array is :" + fruits);
+            let f1 = prompt("請輸入要刪除的水果名稱");
+            let index = fruits.indexOf(f1);
+            if (index >= 0) {
+                fruits.splice(index, 1);
+                console.log("fruits array is now :" + fruits);
+            } else {
+                console.log(f1+" 水果名稱不存在");
+                console.log("fruits array is now :" + fruits);
+            }
+        }
+        function ArrayReplace() {
+            console.log("fruits array is :" + fruits);
+            let f1 = prompt("請輸入要替換的水果名稱");
+            let index = fruits.indexOf(f1);
+            if (index >= 0) {
+                let f2 = prompt("請輸入新的水果名稱");
+                fruits.splice(index, 1, f2);
+                console.log("fruits array is now :" + fruits);
+            } else {
+                console.log(f1+" 水果名稱不存在");
+                console.log("fruits array is now :" + fruits);
+            }
+        }
+
+    </script>
+</body>
+
+</html>

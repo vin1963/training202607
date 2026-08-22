@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>create object</title>
+
+</head>
+
+<body>
+    <button onclick="createobject()">Create Object</button>
+    <button onclick="jsonobject()">Create JSON Object</button>
+    <button onclick="storedata()">Store Data</button>
+    <script>
+        var person = {};
+        function createobject() {
+            let name = prompt("Enter name");
+            let age = prompt("Enter age");
+            person.name = name;
+            person.age = parseInt(age);
+            console.log(person);
+        }
+        function jsonobject() {
+            var jsstr = JSON.stringify(person);
+            console.log(jsstr);
+            console.log(person);
+        }
+        function storedata() {
+            let data = '{"id": 1,\
+    "title": "Fjallraven - Foldsack No. 1 Backpack, Fits 15 Laptops",\
+    "price": 109.95,\
+    "description": "Your perfect pack for everyday use and walks in the forest. Stash your laptop (up to 15 inches) in the padded sleeve, your everyday",\
+    "category": "mens clothing",\
+    "image": "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_t.png",\
+    "rating": {\
+      "rate": 3.9,\
+      "count": 120\ } }' ;
+
+            var obj = JSON.parse(data);
+            console.log(obj);
+        }
+    </script>
+</body>
+
+</html>

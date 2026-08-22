@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>jQuery Basic</title>    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+</head>
+
+<body>  
+   <button id="b1">jQuery Get</button>
+    <button id="b2">jQuery Post</button>
+</body>
+
+<script>
+    const btnClick = () => {
+         $.get("http://localhost:8080/api/first", function(data, status) {
+            alert("Data: " + data + "\nStatus: " + status);
+         });
+    };
+    const btn2Click = () => {
+         $.post("http://localhost:8080/api",  { name: "Lee", city: "Taipei" }, function(data, status) {
+            alert("Data: " + data + "\nStatus: " + status);
+         });
+    };
+    const start = () => {      
+        $("#b1").click(btnClick);
+        $("#b2").click(btn2Click);       
+    };
+    $(document).ready(start);
+</script>
+</html>
