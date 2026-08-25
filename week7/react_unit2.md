@@ -627,9 +627,43 @@ function UserList() {
 
 export default UserList;
 ```
-
 ---
+### 加入 input userId state + useEffect userId
+```jsx
+ const [user, setUser] = useState({});
+ const [userId, setUserId] = useState(1); // 新增 state 來追蹤使用者 ID
+  useEffect(() => {
+        // 定義非同步函式（useEffect 的 callback 本身不能是 async）
+        async function fetchUserById(userId) {
+            try {
+                const response = await fetch(`https://jsonplaceholder.typicode.com/users/${userId}`);
 
+                if (!response.ok) {
+                    throw new Error(`HTTP 錯誤：${response.status}`);
+                }
+
+                const data = await response.json();
+                setUser(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchUserById(userId);
+    }, [userId]);
+
+<label htmlFor="userId">使用者 ID：</label>
+            <input
+                id="userId"
+                type="number"
+                value={userId}
+                onChange={(e) => setUserId(Number(e.target.value))}
+            />
+<span>使用者名稱：{user.name}</span>
+
+```
 ### 清除副作用（Cleanup Function）
 
 ```jsx
